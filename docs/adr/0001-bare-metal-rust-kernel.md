@@ -1,6 +1,6 @@
 # Bare-metal Rust kernel
 
-ns-os is a bare-metal Rust kernel: a boot protocol hands control directly to our
+punkos is a bare-metal Rust kernel: a boot protocol hands control directly to our
 kernel, which talks to hardware itself, with no host OS underneath. We chose this
 over building a custom userland on a minimal Linux because it is the purest
 expression of the project's goals — abandoning POSIX/Windows conventions, lowest

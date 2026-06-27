@@ -14,3 +14,9 @@ See `docs/agents/triage-labels.md`.
 
 Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root.
 See `docs/agents/domain.md`.
+
+### Code
+
+Always apply SOLID principles when writing or refactoring code.
+Use test-driven development (TDD): write a failing test first, implement the smallest change to pass it, then refactor.
+

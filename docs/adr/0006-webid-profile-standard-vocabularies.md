@@ -1,6 +1,6 @@
 # Mint a full WebID profile; reuse standard vocabularies
 
-At first capture, ns-os generates a complete, valid self-issued **WebID profile
+At first capture, punkos generates a complete, valid self-issued **WebID profile
 document** (a named graph of quads): `<…#me> a foaf:Person ; foaf:name "<captured>"`
 plus the SOLID/PIM terms that make it a recognisable pod profile. The `#me` node
 is the identity Fragment.

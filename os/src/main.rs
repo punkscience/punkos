@@ -1,4 +1,4 @@
-//! Launch ns-os in QEMU.
+//! Launch punkos in QEMU.
 //!
 //! `cargo run` boots the BIOS image (no firmware blob needed — QEMU's bundled
 //! SeaBIOS). Flags:
@@ -41,8 +41,8 @@ fn main() {
 
     let qemu = find_qemu();
 
-    eprintln!("ns-os :: BIOS image = {BIOS_IMAGE}");
-    eprintln!("ns-os :: UEFI image = {UEFI_IMAGE}");
+    eprintln!("punkos :: BIOS image = {BIOS_IMAGE}");
+    eprintln!("punkos :: UEFI image = {UEFI_IMAGE}");
 
     let mut cmd = Command::new(&qemu);
     if uefi {
@@ -65,13 +65,13 @@ fn main() {
         cmd.arg("-display").arg("none");
     }
 
-    eprintln!("ns-os :: launching {qemu} ...");
+    eprintln!("punkos :: launching {qemu} ...");
     match cmd.status() {
         Ok(status) => std::process::exit(status.code().unwrap_or(0)),
         Err(e) => {
-            eprintln!("ns-os :: could not launch QEMU ({qemu}): {e}");
-            eprintln!("ns-os :: install QEMU (qemu-system-x86_64) and put it on PATH, or set QEMU=<path>.");
-            eprintln!("ns-os :: the disk images above are already built and bootable.");
+            eprintln!("punkos :: could not launch QEMU ({qemu}): {e}");
+            eprintln!("punkos :: install QEMU (qemu-system-x86_64) and put it on PATH, or set QEMU=<path>.");
+            eprintln!("punkos :: the disk images above are already built and bootable.");
             std::process::exit(1);
         }
     }

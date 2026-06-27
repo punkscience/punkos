@@ -14,12 +14,12 @@ fn main() {
     );
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
 
-    let bios = out_dir.join("ns-os-bios.img");
+    let bios = out_dir.join("punkos-bios.img");
     bootloader::BiosBoot::new(&kernel)
         .create_disk_image(&bios)
         .expect("failed to create BIOS disk image");
 
-    let uefi = out_dir.join("ns-os-uefi.img");
+    let uefi = out_dir.join("punkos-uefi.img");
     bootloader::UefiBoot::new(&kernel)
         .create_disk_image(&uefi)
         .expect("failed to create UEFI disk image");

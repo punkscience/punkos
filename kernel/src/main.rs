@@ -41,7 +41,7 @@ entry_point!(kernel_main, config = &CONFIG);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     serial::init();
     serial_println!();
-    serial_println!("punk.science // ns-os");
+    serial_println!("punk.science // punkos");
     serial_println!("build dots loading  [* * *]");
     serial_println!("[ ok ] kernel reached long mode and the entry point");
 
