@@ -1,0 +1,11 @@
+[package]
+name = "os"
+version = "0.1.0"
+edition = "2021"
+
+# This is a host-side crate (built for the dev machine's own triple). At build
+# time it pulls in the kernel as an x86_64 artifact dependency and turns the
+# resulting ELF into bootable BIOS + UEFI disk images.
+[build-dependencies]
+bootloader = "0.11.15"
+kernel = { path = "../kernel", artifact = "bin", target = "x86_64-unknown-none" }

@@ -1,0 +1,14 @@
+# ns-os workspace.
+#
+# Two members:
+#   kernel/ — the bare-metal #![no_std] kernel, built for x86_64-unknown-none.
+#   os/     — a host-side builder+runner: turns the kernel ELF into a bootable
+#             disk image (via the `bootloader` crate) and launches QEMU.
+#
+# `default-members = ["os"]` so a bare `cargo build`/`cargo run` builds the host
+# runner (which pulls the kernel in as an x86_64 artifact dependency) and never
+# tries to build the no_std kernel for the host triple.
+[workspace]
+resolver = "2"
+members = ["kernel", "os"]
+default-members = ["os"]

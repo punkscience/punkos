@@ -1,0 +1,8 @@
+# Host toolchain note: this dev machine is Windows-on-ARM with no MSVC. We use the
+# LLVM-based `gnullvm` host toolchain (clang/lld from MSYS2 CLANGARM64) instead of
+# the MSVC linker. On a machine with MSVC installed, plain `nightly` also works —
+# the kernel target (x86_64-unknown-none) is identical either way.
+[toolchain]
+channel = "nightly-aarch64-pc-windows-gnullvm"
+components = ["rust-src", "llvm-tools"]
+targets = ["x86_64-unknown-none"]

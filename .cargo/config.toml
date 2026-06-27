@@ -1,0 +1,12 @@
+# Artifact dependencies (the kernel ELF consumed by the `os` builder crate) are
+# an unstable cargo feature; enable it here so plain `cargo build`/`run` works.
+[unstable]
+bindeps = true
+
+# Host-target linker (this dev machine only): the gnullvm toolchain defaults to a
+# linker named `aarch64-w64-mingw32-clang`, which MSYS2 doesn't ship — MSYS2's
+# CLANGARM64 clang has that same mingw/LLVM ABI as its native target, so we point
+# straight at it. Scoped to the host target; the kernel (x86_64-unknown-none)
+# keeps its default rust-lld.
+[target.aarch64-pc-windows-gnullvm]
+linker = "C:/msys64/clangarm64/bin/clang.exe"
