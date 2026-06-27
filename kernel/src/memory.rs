@@ -5,8 +5,9 @@
 //! to map new pages, and hand out usable physical frames from the memory map.
 
 use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
+use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{
-    FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB,
+    FrameAllocator, OffsetPageTable, PageTable, PageTableFlags, PhysFrame, Size4KiB,
 };
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -21,8 +22,6 @@ pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static>
 }
 
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
-    use x86_64::registers::control::Cr3;
-
     let (level_4_table_frame, _) = Cr3::read();
     let phys = level_4_table_frame.start_address();
     let virt = physical_memory_offset + phys.as_u64();
@@ -46,6 +45,16 @@ impl BootInfoFrameAllocator {
         }
     }
 
+    /// Skip frames until we pass `min_addr` — avoids giving out frames
+    /// in low conventional memory or the bootloader's footprint.
+    pub fn skip_below(&mut self, min_addr: u64) {
+        let skip_count = self
+            .usable_frames()
+            .take_while(|f| f.start_address().as_u64() < min_addr)
+            .count();
+        self.next = skip_count;
+    }
+
     fn usable_frames(&self) -> impl Iterator<Item = PhysFrame> + '_ {
         self.memory_regions
             .iter()
@@ -62,4 +71,50 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
         self.next += 1;
         frame
     }
+}
+
+/// Walk the active page tables to translate a virtual address to a physical
+/// address.  Uses `phys_offset` to reach physical page-table frames.
+///
+/// # Safety
+/// `phys_offset` must be the identity-map base for all physical memory.
+pub unsafe fn virt_to_phys(virt: VirtAddr, phys_offset: VirtAddr) -> Option<u64> {
+    let (p4_frame, _) = Cr3::read();
+
+    // Helper: dereference a physical page-table frame viewed through phys_offset.
+    let pt_at = |frame: PhysFrame| -> *const PageTable {
+        (phys_offset + frame.start_address().as_u64()).as_ptr::<PageTable>()
+    };
+
+    let p4: &PageTable = unsafe { &*pt_at(p4_frame) };
+    let p4e = &p4[virt.p4_index()];
+    if !p4e.flags().contains(PageTableFlags::PRESENT) {
+        return None;
+    }
+
+    let p3: &PageTable = unsafe { &*pt_at(p4e.frame().ok()?) };
+    let p3e = &p3[virt.p3_index()];
+    if !p3e.flags().contains(PageTableFlags::PRESENT) {
+        return None;
+    }
+    if p3e.flags().contains(PageTableFlags::HUGE_PAGE) {
+        return Some(p3e.addr().as_u64() + (virt.as_u64() & 0x3FFF_FFFF));
+    }
+
+    let p2: &PageTable = unsafe { &*pt_at(p3e.frame().ok()?) };
+    let p2e = &p2[virt.p2_index()];
+    if !p2e.flags().contains(PageTableFlags::PRESENT) {
+        return None;
+    }
+    if p2e.flags().contains(PageTableFlags::HUGE_PAGE) {
+        return Some(p2e.addr().as_u64() + (virt.as_u64() & 0x1F_FFFF));
+    }
+
+    let p1: &PageTable = unsafe { &*pt_at(p2e.frame().ok()?) };
+    let p1e = &p1[virt.p1_index()];
+    if !p1e.flags().contains(PageTableFlags::PRESENT) {
+        return None;
+    }
+
+    Some(p1e.addr().as_u64() + (virt.as_u64() & 0xFFF))
 }

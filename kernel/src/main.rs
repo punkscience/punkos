@@ -19,7 +19,9 @@ mod gdt;
 mod interrupts;
 mod keyboard;
 mod memory;
+mod pci;
 mod render;
+mod xhci;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -77,6 +79,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let memory_regions: &'static MemoryRegions = &boot_info.memory_regions;
     let mut mapper = unsafe { memory::init(phys_offset) };
     let mut frame_allocator = unsafe { memory::BootInfoFrameAllocator::init(memory_regions) };
+    // Skip conventional memory and bootloader footprint — the bootloader's
+    // last used address is ~19 MB.  Starting at 8 MB skips BIOS/EBDA and
+    // low-memory regions that QEMU's xHCI emulation may not like for DMA.
+    frame_allocator.skip_below(0x20_0000); // 2 MB — safe above conventional
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialisation failed");
     serial_println!(
         "[ ok ] paging + {} KiB heap online",
@@ -104,6 +110,62 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         x86_64::instructions::hlt(); // sleep until the next interrupt
     }
     serial_println!("[ ok ] M3 complete — timer ticking: {} ticks", interrupts::ticks());
+
+    // M6a: PCI bus enumeration — find the xHCI USB controller.
+    serial_println!("[ ok ] M6a PCI bus scan  [* * *]");
+    let devices = pci::enumerate();
+    serial_println!("[ ok ] {} PCI device(s) found:", devices.len());
+    for d in &devices {
+        serial_println!(
+            "  {:02x}:{:02x}.{}  vendor={:04x} device={:04x}  class={:02x}.{:02x}.{:02x} ({})",
+            d.bus,
+            d.device,
+            d.function,
+            d.vendor_id,
+            d.device_id,
+            d.class,
+            d.subclass,
+            d.prog_if,
+            pci::class_name(d.class, d.subclass),
+        );
+    }
+
+    let xhci_devs = pci::find_xhci(&devices);
+    if xhci_devs.is_empty() {
+        serial_println!("[!!] no xHCI controller found — is qemu-xhci attached?");
+    } else {
+        for xd in &xhci_devs {
+            serial_println!(
+                "[ ok ] xHCI at {:02x}:{:02x}.{} vendor={:04x} device={:04x}",
+                xd.bus,
+                xd.device,
+                xd.function,
+                xd.vendor_id,
+                xd.device_id,
+            );
+            for (i, bar) in xd.bars.iter().enumerate() {
+                if let Some(b) = bar {
+                    if let Some(base) = b.memory_base() {
+                        serial_println!("  BAR{} mmio base = {:#x}", i, base);
+                    }
+                }
+            }
+
+            // M6b: initialise the xHCI controller using BAR0 MMIO.
+            if let Some(bar0) = xd.bars[0].as_ref() {
+                if let Some(mmio) = bar0.memory_base() {
+                    serial_println!("[ ok ] M6b xHCI init  [* * *]");
+                    let mut ctrl = xhci::Controller::init(mmio, phys_offset);
+                    ctrl.noop(); // quick health check
+                    let connected = ctrl.initialise_ports();
+                    serial_println!("[xhci] {} port(s) with device attached", connected);
+                    serial_println!("[ ok ] M6b complete");
+                    break; // only init the first xHCI controller for now
+                }
+            }
+        }
+    }
+    serial_println!("[ ok ] M6a complete");
 
     // M5: PS/2 keyboard input.
     interrupts::init_keyboard();

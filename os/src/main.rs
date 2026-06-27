@@ -59,6 +59,8 @@ fn main() {
     } else {
         cmd.arg("-drive").arg(format!("format=raw,file={BIOS_IMAGE}"));
     }
+    cmd.arg("-device").arg("qemu-xhci");             // M6: USB xHCI host controller
+    cmd.arg("-device").arg("usb-kbd");                // M6: USB keyboard for HID testing
     cmd.arg("-serial").arg("stdio");
     cmd.arg("-no-reboot");
     if headless {
